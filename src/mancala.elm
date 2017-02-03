@@ -7,7 +7,7 @@ import Svg.Events
 main = Html.program {init = init, view = view, update = update, subscriptions = subscriptions}
 
 -- TYPES
-type State = Setup | PlayerA | PlayerB | PlayerA_Win | PlayerB_Win | Draw
+type State = Setup | PlayerA | PlayerB | PlayerA_Wins | PlayerB_Wins | Draw
 type alias Board = Array Int
 type alias Model = {state: State, board : Board}
 type Msg = ClickMsg Int
@@ -101,9 +101,9 @@ updateClickMsg pit model =
           scorePlayerB = getStonesInPit basePlayerB gameOverBoard
         in
           if scorePlayerA > scorePlayerB then
-            PlayerA_Win
+            PlayerA_Wins
           else if scorePlayerB > scorePlayerA then
-            PlayerB_Win
+            PlayerB_Wins
           else
             Draw
       else if isLastStoneInBase then
@@ -213,14 +213,14 @@ viewState model =
     settingsDefault = ("black", "rotate(0)")
     settingsA = (colPlayerA, "rotate(0)")
     settingsB = (colPlayerB, "rotate(180 " ++ cx_ ++ "," ++ cy_ ++ ")")
-    (col_, rot_) =
+    ((col_, rot_), str_) =
       case model.state of
-        Setup -> settingsDefault
-        PlayerA -> settingsA
-        PlayerB -> settingsB
-        PlayerA_Win -> settingsA
-        PlayerB_Win -> settingsB
-        Draw -> settingsDefault
+        Setup -> (settingsDefault, "Setup")
+        PlayerA -> (settingsA, "Red")
+        PlayerB -> (settingsB, "Blue")
+        PlayerA_Wins -> (settingsA, "Red Wins")
+        PlayerB_Wins -> (settingsB, "Blue Wins")
+        Draw -> (settingsDefault, "Draw")
   in
     Svg.g []
       [ Svg.text_
@@ -232,7 +232,7 @@ viewState model =
         , Svg.Attributes.fill col_
         , Svg.Attributes.transform rot_
         ]
-        [ Svg.text <| toString model.state ]
+        [ Svg.text str_ ]
       ]
 
 viewBoard : Model -> Svg Msg
