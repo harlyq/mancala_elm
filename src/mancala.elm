@@ -1,10 +1,11 @@
 import Array exposing (Array)
+import Browser
 import Html exposing (Html)
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
 
-main = Html.program {init = init, view = view, update = update, subscriptions = subscriptions}
+main = Browser.element {init = init, view = view, update = update, subscriptions = subscriptions}
 
 -- TYPES
 type State = Setup | PlayerA | PlayerB | PlayerA_Wins | PlayerB_Wins | Draw
@@ -22,15 +23,15 @@ basePlayerA = numPitsPerPlayer
 basePlayerB = numPits - 1
 boardWidth = 1000
 boardHeight = 640
-boardWidth_ = toString boardWidth
-boardHeight_ = toString boardHeight
+boardWidth_ = String.fromInt boardWidth
+boardHeight_ = String.fromInt boardHeight
 colPlayerA = "red"
 colPlayerB = "blue"
 
 
 -- INIT
-init : (Model, Cmd Msg)
-init =
+init : () -> (Model, Cmd Msg)
+init _ =
   (updateSetup <| Model Setup (Array.repeat numPits 0), Cmd.none)
 
 
@@ -45,7 +46,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     ClickMsg pit ->
-      if getIsValidStartingPit pit model || (-1 == Debug.log "Invalid pit" pit) then
+      if getIsValidStartingPit pit model || (-1 == pit) then
         (updateClickMsg pit model, Cmd.none)
       else
         (model, Cmd.none)
@@ -66,15 +67,13 @@ updateClickMsg pit model =
     stones = getStonesInPit pit model.board
     removeStoneBoard = Array.set pit 0 model.board
     (lastPit, addStoneBoard) = addStone isPlayerA (pit + 1) stones removeStoneBoard
-    isLastStoneInBase = Debug.log "isLastStoneInBase" <| getIsBase lastPit
-    _ = Debug.log "lastPit" lastPit
-    _ = Debug.log "stones in lastPit" <| getStonesInPit lastPit addStoneBoard
+    isLastStoneInBase = getIsBase lastPit
 
-    isTakeOpponentsStones = Debug.log "isTakeOpponentsStones" <| (not isLastStoneInBase) && (1 == (getStonesInPit lastPit addStoneBoard)) && (isPlayerA == getIsPlayerA lastPit)
+    isTakeOpponentsStones = (not isLastStoneInBase) && (1 == (getStonesInPit lastPit addStoneBoard)) && (isPlayerA == getIsPlayerA lastPit)
     takeOpponentsStonesBoard =
       if isTakeOpponentsStones then
         let
-          opponentsPit = Debug.log "opponentsPit" <| numPits - 2 - (rem lastPit numPits)
+          opponentsPit = numPits - 2 - (remainderBy numPits lastPit)
         in
           if isPlayerA then
             moveStonesToBase basePlayerA opponentsPit addStoneBoard
@@ -161,21 +160,21 @@ viewPit i v =
     lineY1 = cy + (if isPlayerA then r//3 else -r//3)
     lineY2 = lineY1
 
-    r_ = toString r
-    cx_ = toString cx
-    cy_ = toString cy
-    v_ = toString v
-    textCx_ = toString textCx
-    textCy_ = toString textCy
-    textRot_ = toString textRot
-    lineX1_ = toString lineX1
-    lineX2_ = toString lineX2
-    lineY1_ = toString lineY1
-    lineY2_ = toString lineY2
+    r_ = String.fromInt r
+    cx_ = String.fromInt cx
+    cy_ = String.fromInt cy
+    v_ = String.fromInt v
+    textCx_ = String.fromInt textCx
+    textCy_ = String.fromInt textCy
+    textRot_ = String.fromInt textRot
+    lineX1_ = String.fromInt lineX1
+    lineX2_ = String.fromInt lineX2
+    lineY1_ = String.fromInt lineY1
+    lineY2_ = String.fromInt lineY2
     textTransform_ = "rotate(" ++ textRot_ ++ " " ++ cx_ ++ "," ++ cy_ ++ ")"
   in
     Svg.g
-      [ Svg.Attributes.id (toString i)
+      [ Svg.Attributes.id (String.fromInt i)
       , Svg.Events.onClick (ClickMsg i)
       ]
       [ Svg.circle
@@ -208,8 +207,8 @@ viewState model =
   let
     cx = 400
     cy = 220
-    cx_ = toString cx
-    cy_ = toString cy
+    cx_ = String.fromInt cx
+    cy_ = String.fromInt cy
     settingsDefault = ("black", "rotate(0)")
     settingsA = (colPlayerA, "rotate(0)")
     settingsB = (colPlayerB, "rotate(180 " ++ cx_ ++ "," ++ cy_ ++ ")")
@@ -248,7 +247,7 @@ getStonesInPit i array =
 getIsBase i = (getPlayerPit i) == numPitsPerPlayer
 getIsPlayerA i = i < (numPitsPerPlayer + 1)
 getIsPlayerB i = not <| getIsPlayerA i
-getPlayerPit i = rem i (numPitsPerPlayer + 1)
+getPlayerPit i = remainderBy (numPitsPerPlayer + 1) i
 getIsGameOver board =
   (0 == (Array.foldl (\v x -> x + v) 0 <| Array.slice 0 numPitsPerPlayer board)) ||
   (0 == (Array.foldl (\v x -> x + v) 0 <| Array.slice (-numPitsPerPlayer - 1) -1 board))
@@ -256,7 +255,7 @@ getIsGameOver board =
 addStone : Bool -> Int -> Int -> Array Int -> (Int, Array Int)
 addStone isPlayerA pit stonesToAdd board =
   let
-    i = rem pit numPits
+    i = remainderBy numPits pit
     isSkip =
       (isPlayerA && (getIsPlayerB i && getIsBase i)) ||
       ((not isPlayerA) && (getIsPlayerA i && getIsBase i))
@@ -273,19 +272,17 @@ addStone isPlayerA pit stonesToAdd board =
         stonesToAdd - 1
   in
     if stonesToAdd == 0 then
-      (rem (pit - 1) numPits, board)
+      (remainderBy numPits (pit - 1), board)
     else
       addStone isPlayerA (pit + 1) newStonesToAdd newBoard
 
 moveStonesToBase : Int -> Int -> Array Int -> Array Int
 moveStonesToBase dest src board =
   let
-    _ = Debug.log "src" src
-    _ = Debug.log "dest" dest
-    srcStones = Debug.log "srcStones" <| getStonesInPit src board
-    destStones = Debug.log "destStones" <| getStonesInPit dest board
+    srcStones = getStonesInPit src board
+    destStones = getStonesInPit dest board
     board2 = Array.set src 0 board
-    board3 = Debug.log "board3" <| Array.set dest (srcStones + destStones) board2
+    board3 = Array.set dest (srcStones + destStones) board2
   in
     board3
 
